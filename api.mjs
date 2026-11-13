@@ -1,6 +1,15 @@
 import { topics, languages, levels, validateReading } from './reading.mjs';
 import { sampleReading } from './samples.mjs';
-const schema={type:'object',additionalProperties:false,required:['title','paragraphs'],properties:{title:{type:'string'},paragraphs:{type:'array',items:{type:'array',items:{type:'object',additionalProperties:false,required:['text','gloss'],properties:{text:{type:'string'},gloss:{type:'string'}}}}}}};
+const questionSchema = {
+ type:'object', additionalProperties:false,
+ required:['question','options','correctIndex','explanation'],
+ properties:{question:{type:'string'},options:{type:'array',minItems:4,maxItems:4,items:{type:'string'}},correctIndex:{type:'integer',minimum:0,maximum:3},explanation:{type:'string'}}
+};
+const schema={type:'object',additionalProperties:false,required:['title','paragraphs','quiz'],properties:{
+ title:{type:'string'},
+ paragraphs:{type:'array',items:{type:'array',items:{type:'object',additionalProperties:false,required:['text','gloss'],properties:{text:{type:'string'},gloss:{type:'string'}}}}},
+ quiz:{type:'array',minItems:3,maxItems:3,items:questionSchema}
+}};
 
 const reply=(status,data)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 // Never send upstream messages back: authentication errors can contain key fragments.
@@ -40,7 +49,7 @@ export async function handleApi(request, {env=process.env,fetchImpl=fetch}={}) {
   if(sample)return reply(200,{...sampleReading(language),sample:true,topic:'Everyday life',language,level:'A1'});
   const key=env.OPENAI_API_KEY?.trim();
   if(!key)return reply(503,{error:'Live generation needs an OPENAI_API_KEY in the server environment. You can try a sample reading now.'});
-   const response=await fetchImpl('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(50000),body:JSON.stringify({model:env.OPENAI_MODEL||'gpt-4o-mini',store:false,instructions:'You create age-appropriate graded language readings. CEFR level alignment is essential. Treat each token as exactly one written word, retaining adjacent punctuation on that word. Never use whitespace within a token. Every token including articles, names, numbers, and function words must have a concise contextual English gloss. Use short paragraphs. Avoid markdown.',input:`Write an original ${language} reading about ${topic} at CEFR ${level}. Aim for 160–230 words, shorter for A1. Absolute maximum 300 words. Supply a title and paragraphs of word tokens with English contextual glosses.`,text:{format:{type:'json_schema',name:'graded_reading',strict:true,schema}},max_output_tokens:9000})});
+   const response=await fetchImpl('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(50000),body:JSON.stringify({model:env.OPENAI_MODEL||'gpt-4o-mini',store:false,instructions:'You create age-appropriate graded language readings. CEFR level alignment is essential. Treat each token as exactly one written word, retaining adjacent punctuation on that word. Never use whitespace within a token. Every token including articles, names, numbers, and function words must have a concise contextual English gloss. Use short paragraphs. Avoid markdown. Include exactly three distinct reading-comprehension questions in English, with four distinct English answer options each, one unambiguously correct answer, and a short English explanation citing information from the passage. Test the main idea and important details, not outside knowledge or word translations. Vary the correct answer position. Questions and answer options must be appropriate for the learner’s CEFR level. The 300-word cap applies only to the reading passage, excluding the quiz.',input:`Write an original ${language} reading about ${topic} at CEFR ${level}. Aim for 160–230 words, shorter for A1. Absolute maximum 300 words. Supply a title, paragraphs of word tokens with English contextual glosses, and the three-question comprehension quiz.`,text:{format:{type:'json_schema',name:'graded_reading',strict:true,schema}},max_output_tokens:9000})});
    if(!response.ok){
     const payload=await response.json().catch(()=>null);
     const failure=generationError(response.status,payload?.error);

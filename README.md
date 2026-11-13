@@ -44,3 +44,7 @@ Docs: [function configuration](https://docs.netlify.com/build/functions/configur
 ### Firebase later
 
 Keep the frontend on Netlify and use Firebase Authentication plus Firestore for learner accounts and saved reports. At that stage, send the Firebase ID token with reading requests and verify it on the server before generating text; enforce per-user quotas there. Store reports under each authenticated user's ID with corresponding Firestore security rules. Browser history currently remains on-device; no Firebase project or account data has been configured yet.
+
+## Comprehension quiz
+
+Each new reading includes three English multiple-choice comprehension questions, each with four options and one correct answer. Questions are generated with the passage; sample readings include matching quizzes too. The reading timer freezes when the learner chooses **Finish & take quiz**. All three answers are required before submission. The report shows the score, selected and correct answers, and explanations, and includes these in browser history and downloaded JSON reports. Existing reports without a quiz still open normally. The passage's 300-word limit excludes the quiz. Generated question accuracy needs teacher review for formal assessment; this is a browser-graded learning activity, not a secure exam.
